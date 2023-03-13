@@ -2,7 +2,5 @@
 
 Я поддерживаю следующие команды:
 - /help, /start - показать это сообщение
-
-# Опции
-- /emotions [текст] - определить эмоциональную окраску текста (Hugging Faces: 'Aniemore/rubert-tiny2-russian-emotion-detection')
 - /echo [текст] - отправить текст обратно
+- /emotions [текст] - определить эмоциональную окраску текста (Hugging Faces: 'Aniemore/rubert-tiny2-russian-emotion-detection')

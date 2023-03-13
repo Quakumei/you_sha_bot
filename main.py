@@ -12,25 +12,27 @@ from os import getenv
 from hashlib import sha256
 load_dotenv()
 
-# Models
-from models.echo import generate_answer as generate_echo
-from models.rubert_tiny2_russian_emotion_detection import generate_answer as generate_emotions
-
 # + Config --------------+
 BOT_TOKEN: str = getenv("TELEGRAM_BOT_PRIVATE_KEY")
+TORCH_SUPPORT: bool = getenv("TORCH_SUPPORT") == 'True'
 HELP_FILE: str = 'bot_texts/help.txt'
 BOT_NAMES_FILE: str = 'bot_texts/bot_names.txt'
 # +----------------------+
 
+# Models
+from models.echo import generate_answer as generate_echo
+if TORCH_SUPPORT:
+    from models.rubert_tiny2_russian_emotion_detection import generate_answer as generate_emotions
+
 
 def load_list(file:str) -> list[str]:
-    with open(file) as f:
+    with open(file, encoding="utf8") as f:
         result = [l.strip() for l in f.readlines()]
     return result
 
 def load_string_banner(file:str) -> list[str]:
-    with open(file) as f:
-        result = '\n'.join(f.readlines())
+    with open(file, encoding="utf8") as f:
+        result = ''.join(f.readlines())
     return result
 
 
@@ -42,8 +44,20 @@ logging.info(f"Token SHA256: {token_sha[:16]}...{token_sha[-16:]}")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
+# Load strings
 help_message : str   = load_string_banner(HELP_FILE)
 bot_names : set[str] = set(load_list(BOT_NAMES_FILE))
+
+
+def strip_command(text:str) -> str:
+    """
+        Убирает /команду из строки
+    """
+    text_split = text.split(' ')
+    if len(text_split) == 1:
+        return ''
+    return ' '.join(text.split(' ')[1:])
+
 
 # /start
 # /help
@@ -54,28 +68,28 @@ async def send_welcome(message: types.Message):
     """
     await message.reply(help_message)
 
-def strip_command(text:str) -> str:
-    text_split = text.split(' ')
-    if len(text_split) == 1:
-        return ''
-    return ' '.join(text.split(' ')[1:])
-
-
 # /emotions
-@dp.message_handler(commands=['emotions'])
-async def emotions(message: types.Message):
-    if message.text:
-        await message.answer(generate_emotions(strip_command(message.text)))
-    else:
-        await message.answer("dafuq?")
+if TORCH_SUPPORT:
+    @dp.message_handler(commands=['emotions'])
+    async def emotions(message: types.Message):
+        text_arg = generate_echo(strip_command(message.text))
+        if text_arg:
+            await message.answer(generate_emotions(strip_command(message.text)))
+        else:
+            await message.answer("/emotions [text], пожалуйста.")
+
 
 # /echo
 @dp.message_handler(commands=['echo'])
 async def echo(message: types.Message):
-    await message.answer(generate_echo(strip_command(message.text)))
+    text_arg = generate_echo(strip_command(message.text))
+    if text_arg:
+        await message.answer(text_arg)
+    else:
+        await message.answer("/echo [text], пожалуйста.")
 
 
-# Answer if someone mentions Yusha
+# Ответить, если кто-то упомянул бота
 @dp.message_handler()
 async def callout(message: types.Message):
     text : str = message.text
